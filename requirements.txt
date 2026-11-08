@@ -1,0 +1,4 @@
+# Local notebook run only. Kaggle already has these.
+pandas>=2.2
+pyarrow>=15
+scikit-learn>=1.5
