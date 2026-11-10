@@ -1,0 +1,14 @@
+# Off-Kaggle 9B study env only. Not used by the submit notebook.
+# Install torch from the CUDA 12.8 index first (Blackwell), then this file
+# without replacing that wheel:
+#   pip install 'torch>=2.7,<2.9' --index-url https://download.pytorch.org/whl/cu128
+#   pip install -r tools/requirements-9b.txt
+torch>=2.7,<2.9
+transformers==5.17.0
+pydantic>=2
+huggingface_hub>=0.34,<2
+safetensors>=0.4
+pandas>=2.2
+scikit-learn>=1.5
+pyarrow>=15
+accelerate>=1.0

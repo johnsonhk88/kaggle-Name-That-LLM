@@ -14,6 +14,7 @@ Competition: https://www.kaggle.com/competitions/name-that-llm
 | Metric | Balanced accuracy (mean per-class recall) |
 | Current backend | Word+char TF-IDF + LogisticRegression |
 | Later | Fine-tune Qwen3.5-9B-Base and Kev-9B off-Kaggle, then infer in the same notebook |
+| Study only | Drex v1.5 decision model (`docs/drex-decision-model.md`) — not in the submit notebook |
 | Deadlines | Join/merge **6 Jan 2027 23:59 UTC**; submit **13 Jan 2027 23:59 UTC** |
 
 Interactive `test.csv` has **3 rows**. The scored rerun has **~4000**. Do not treat a 10-second local/interactive run as proof that the full submit will finish.
@@ -28,6 +29,8 @@ src/name-that-llm-submit.ipynb  ← upload this to Kaggle
 src/sample/                     public reference notebooks (not our submit)
 docs/kaggle-model-import.md     how to attach Qwen / Kev on Kaggle
 docs/phase-0-1.md               current status checklist
+docs/drex-decision-model.md     Drex v1.5 study (not submit)
+tools/drex_zeroshot_probe.py    off-Kaggle Drex zero-shot on train.csv
 ```
 
 Do not split the submit path into extra Python modules. All scored code stays in the one notebook.

@@ -20,3 +20,5 @@ Submit code is **one notebook**: `src/name-that-llm-submit.ipynb`.
 ## Not in this phase
 
 Qwen LoRA training, Kev continue-train, T4 DeltaNet kernels, extra data.
+
+Drex v1.5 is **study-only** until `tools/drex_zeroshot_probe.py` beats TF-IDF. See `docs/drex-decision-model.md`. Do not attach Drex on Kaggle yet.

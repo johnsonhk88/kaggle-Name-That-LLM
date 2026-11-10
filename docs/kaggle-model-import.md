@@ -15,6 +15,8 @@ Submit notebooks run **internet off**. Import bases now. Publish fine-tunes late
 | Backbone | [`Qwen/Qwen3.5-9B-Base`](https://huggingface.co/Qwen/Qwen3.5-9B-Base) | **Kaggle Model** | Language-only Base, not Instruct, not 9B-VL |
 | Decision adapter | [`jaredpalmer/kev-9b`](https://huggingface.co/jaredpalmer/kev-9b) | Model **or Dataset** | PEFT adapter + `head.pt`; Dataset is more reliable |
 
+Do **not** import [`nace-ai/drex-v1.5`](https://huggingface.co/nace-ai/drex-v1.5) yet (Open RAIL-M, full 18 GB checkpoint, not an adapter on Qwen-Base). Study notes: `docs/drex-decision-model.md`.
+
 ### Model import (UI)
 
 1. https://www.kaggle.com/models → **New Model**
