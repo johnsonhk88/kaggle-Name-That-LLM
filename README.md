@@ -13,8 +13,10 @@ Competition: https://www.kaggle.com/competitions/name-that-llm
 | Output | `submission.parquet` with columns `id`, `model` |
 | Metric | Balanced accuracy (mean per-class recall) |
 | Current backend | Word+char TF-IDF + LogisticRegression |
-| Later | Fine-tune Qwen3.5-9B-Base and Kev-9B off-Kaggle, then infer in the same notebook |
-| Study only | Drex v1.5 decision model (`docs/drex-decision-model.md`) — not in the submit notebook |
+| Later | Fine-tune Qwen3.5-9B-Base off-Kaggle, then infer in the same notebook |
+| Experts | Qwen3.5-9B-Base LoRA · Kev-9B adapter · d3-mini (Decision 3.0) |
+| Teacher only | d3-flash 9B — off-Kaggle soft labels, does not fit a T4 |
+| Study | `docs/decision-models.md` — decision models vs this task, not in the submit notebook |
 | Deadlines | Join/merge **6 Jan 2027 23:59 UTC**; submit **13 Jan 2027 23:59 UTC** |
 
 Interactive `test.csv` has **3 rows**. The scored rerun has **~4000**. Do not treat a 10-second local/interactive run as proof that the full submit will finish.
@@ -27,10 +29,12 @@ Interactive `test.csv` has **3 rows**. The scored rerun has **~4000**. Do not tr
 dataset/name-that-llm/          train.csv, test.csv, sample_submission.parquet
 src/name-that-llm-submit.ipynb  ← upload this to Kaggle
 src/sample/                     public reference notebooks (not our submit)
-docs/kaggle-model-import.md     how to attach Qwen / Kev on Kaggle
+docs/kaggle-model-import.md     how to attach Qwen / Kev / d3-mini on Kaggle
 docs/phase-0-1.md               current status checklist
-docs/drex-decision-model.md     Drex v1.5 study (not submit)
-tools/drex_zeroshot_probe.py    off-Kaggle Drex zero-shot on train.csv
+docs/decision-models.md         decision models vs this task (Kev, d3; Drex as prior art)
+tools/d3_zeroshot_probe.py      off-Kaggle d3 zero-shot on train.csv
+tools/kev_adapter_probe.py      off-Kaggle Kev zero-shot on train.csv
+tools/drex_zeroshot_probe.py    prior-art probe (Open RAIL-M, not on the shortlist)
 ```
 
 Do not split the submit path into extra Python modules. All scored code stays in the one notebook.
@@ -73,7 +77,7 @@ You should see:
 - `outputs/submission.parquet` (3 rows, columns `id` and `model`)
 - `outputs/tfidf_cv.json` and `outputs/t4_stub_status.json`
 
-If `qwen_base` / `kev_adapter` are `null`, that is expected until those models are attached on Kaggle.
+If `qwen_base` / `kev_adapter` / `d3_model` are `null`, that is expected until those models are attached on Kaggle.
 
 ---
 
@@ -101,16 +105,20 @@ Pick this version as a Final Submission later if you need a safe fallback.
 
 ---
 
-## 4. Attach the two base models (for later 9B work)
+## 4. Attach the three models (for later 9B work)
 
-Submit notebooks cannot download from Hugging Face. Import bases **now** so they are ready when fine-tunes exist.
+Submit notebooks cannot download from Hugging Face. Import them **now** so they are ready when fine-tunes exist.
 
-| Role | Hugging Face | Attach as |
-|---|---|---|
-| Backbone | [Qwen/Qwen3.5-9B-Base](https://huggingface.co/Qwen/Qwen3.5-9B-Base) | Kaggle **Model** (public) |
-| Decision adapter | [jaredpalmer/kev-9b](https://huggingface.co/jaredpalmer/kev-9b) | Kaggle **Model** or **Dataset** (Dataset is more reliable for `head.pt`) |
+| Role | Hugging Face | Attach as | Size |
+|---|---|---|---|
+| Backbone | [Qwen/Qwen3.5-9B-Base](https://huggingface.co/Qwen/Qwen3.5-9B-Base) | Kaggle **Model** (public) | ~18 GB |
+| Decision adapter | [jaredpalmer/kev-9b](https://huggingface.co/jaredpalmer/kev-9b) | Kaggle **Dataset** (adapter + `head.pt`, **no base weights**) | 0.55 GB |
+| Third expert | [vllm-sr/d3-mini](https://huggingface.co/vllm-sr/d3-mini) | Kaggle **Model** (public) | 9.1 GB |
 
-Use **Base**, not Instruct, not the vision 9B.
+Use **Base**, not Instruct, not the vision 9B. Do **not** attach `d3-flash` (16.8 GB) — it does not fit one T4 and the d3 runtime refuses to shard across two.
+
+Kev is a PEFT adapter on the frozen base: load Qwen once and swap adapters. Never load a second 18 GB checkpoint.
+
 
 **Import Qwen**
 
@@ -128,14 +136,21 @@ kaggle datasets init -p ./hf_cache/kev-9b
 kaggle datasets create -p ./hf_cache/kev-9b
 ```
 
+**Import d3-mini**
+
+1. https://www.kaggle.com/models → **New Model**
+2. Link `vllm-sr/d3-mini`, keep it public (Apache-2.0)
+3. Wait for `decision_config.json`, `readout.safetensors` and both model shards
+4. It needs `transformers==5.17.0`; if the Kaggle image is older, attach the offline wheel Dataset too
+
 **Attach to the same notebook**
 
 1. Open `name-that-llm-submit` on Kaggle
-2. **Add Input** → Models / Datasets → Qwen3.5-9B-Base + Kev
+2. **Add Input** → Models / Datasets → Qwen3.5-9B-Base + Kev + d3-mini
 3. Save & Run All (internet still **off**)
 4. Check printed `t4_stub_status.json`:
-   - `qwen_base` / `kev_adapter` should be paths under `/kaggle/input/...`, not `null`
-   - predictions stay TF-IDF until the 9B heads are implemented
+   - `qwen_base` / `kev_adapter` / `d3_model` should be paths under `/kaggle/input/...`, not `null`
+   - predictions stay TF-IDF until the heads are implemented
 
 Full checklist: [`docs/kaggle-model-import.md`](docs/kaggle-model-import.md).
 
@@ -153,7 +168,7 @@ Rules baked into the notebook:
 - Labels must be exactly one of the 18 official names (`gpt-5.5`, never `gpt5.5`)
 - No Hugging Face / pip downloads
 - No token generation / thinking traces
-- Qwen/Kev inference, when added, must be prefill + class/pointer head, `max_length=512`, sequential on T4 x2
+- Qwen/Kev/d3 inference, when added, must be prefill + class/pointer head, `max_length=512`, sequential on T4 x2
 
 ---
 
@@ -163,11 +178,14 @@ Train **off Kaggle** (local RTX Pro 4500 32GB, Colab A100, or RunPod):
 
 1. LoRA classifier on `Qwen/Qwen3.5-9B-Base`
 2. Continue-train `jaredpalmer/kev-9b` as an 18-way choice model
-3. Upload adapters as **public Kaggle Datasets**
-4. Fill in `infer_qwen_classifier` and `infer_kev_decision` in the **same** submit notebook
-5. Blend with the TF-IDF backend; keep T4 x2, internet off, ≤ 9 hours
+3. Probe `vllm-sr/d3-mini` zero-shot (`tools/d3_zeroshot_probe.py`) and continue-train only if it clears TF-IDF
+4. Upload adapters as **public Kaggle Datasets**
+5. Fill in `infer_qwen_classifier`, `infer_kev_decision` and `infer_d3_decision` in the **same** submit notebook
+6. Blend with the TF-IDF backend; keep T4 x2, internet off, ≤ 9 hours
 
-Kev fused CUDA kernels are not T4-safe. Use a Turing DeltaNet fallback (see the GSQ path in `src/sample/0-680-modernbert-lora-sparse-ensemble.ipynb`).
+Kev fused CUDA kernels and d3 fused linear-attention are not T4-safe. Use a Turing DeltaNet fallback (see the GSQ path in `src/sample/0-680-modernbert-lora-sparse-ensemble.ipynb`).
+
+Off-Kaggle teacher: `vllm-sr/d3-flash` (55.8 on the Jev 0.3.2 text board vs d3-mini's 52.6). Apache-2.0, so distilling its probabilities into d3-mini or the Qwen head is allowed. It is **not** a submit-path checkpoint: 16.8 GB BF16 does not fit one T4 and d3 refuses `device_map` across two.
 
 ---
 
@@ -180,7 +198,9 @@ Kev fused CUDA kernels are not T4-safe. Use a Turing DeltaNet fallback (see the 
 | Notebook times out on Submit | Interactive test is 3 rows. Time a ~4000-row path before adding 9B. |
 | `FileNotFoundError` for train.csv | Start the notebook from the competition so `name-that-llm` is an input. |
 | Internet error on Submit | Settings → Internet **Off**. Attach models/datasets; do not `from_pretrained("Qwen/...")` from the hub. |
-| OOM on T4 | Do not load both 9B models at once. Load Qwen → logits → delete → load Kev. |
+| OOM on T4 | One 9B at a time. Load Qwen once, swap adapters (`merge=False`) for Kev; never a second 18 GB checkpoint. |
+| `d3` refuses to load | d3 runs on **one** device: pass `device="cuda:0"`, not `device_map` across two T4s. Use d3-mini; d3-flash does not fit. |
+| `max_length_exceeded` from d3 | d3 never truncates. Raise the limit or shorten the state; this contest's passages are ~500 tokens, so it should not fire. |
 
 ---
 

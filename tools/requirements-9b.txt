@@ -4,7 +4,7 @@
 #   pip install 'torch>=2.7,<2.9' --index-url https://download.pytorch.org/whl/cu128
 #   pip install -r tools/requirements-9b.txt
 torch>=2.7,<2.9
-transformers==5.17.0
+transformers==5.17.0        # d3 (Decision 3.0) needs 5.17; Qwen3.5 needs >=5.x
 pydantic>=2
 huggingface_hub>=0.34,<2
 safetensors>=0.4
@@ -12,3 +12,10 @@ pandas>=2.2
 scikit-learn>=1.5
 pyarrow>=15
 accelerate>=1.0
+peft>=0.13                  # Kev: LoRA adapter + pointer head
+kev @ git+https://github.com/jaredpalmer/kev.git
+# d3 media path only (text calls do not need these)
+pillow>=10
+opencv-python-headless>=4.9
+# optional: fused linear-attention kernels for d3 / Kev on Ada+ GPUs (not T4)
+# flash-linear-attention==0.5.2
